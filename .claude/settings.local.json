@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "figma"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\('D:\\\\workshop\\\\lost tune\\\\3D_my_logo.png'\\)\\).Length\")"
+    ]
+  }
+}

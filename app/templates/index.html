@@ -1,0 +1,2560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIKA — Agentic Voice Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090909;
+            --glass: rgba(17,17,17,0.55);
+            --glass-border: rgba(255,255,255,0.08);
+            --glass-blur: blur(24px) saturate(1.4);
+            --bg-node: #141414;
+            --bg-active: #050D1C;
+            --accent: #0052FF;
+            --accent-soft: #3375FF;
+            --accent-dim: rgba(0,82,255,0.12);
+            --accent-glow: rgba(0,82,255,0.35);
+            --text: rgba(255,255,255,0.88);
+            --text-secondary: rgba(255,255,255,0.62);
+            --text-tertiary: rgba(255,255,255,0.42);
+            --text-muted: rgba(255,255,255,0.28);
+            --green: #22c55e;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --gold: #f0c040;
+            --mask-green: #2d8a4e;
+            --mask-magenta: #c026d3;
+            --mask-gold: #facc15;
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Noise overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.02;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 128px 128px;
+        }
+
+        /* Glass utility */
+        .glass {
+            background: var(--glass);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* ==============================
+           AMBIENT ORBS
+        ============================== */
+        .ambient-orbs {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0;
+            animation: orbFadeIn 2s ease forwards, orbDrift 20s ease-in-out infinite alternate;
+        }
+
+        .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(0,82,255,0.10) 0%, transparent 70%);
+            top: -10%;
+            left: -5%;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0,82,255,0.06) 0%, transparent 70%);
+            bottom: -10%;
+            right: -5%;
+            animation-delay: 0.5s, 2s;
+        }
+
+        @keyframes orbFadeIn { to { opacity: 1; } }
+        @keyframes orbDrift {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -20px) scale(1.05); }
+            100% { transform: translate(-20px, 15px) scale(0.95); }
+        }
+
+        /* ==============================
+           PARTICLES
+        ============================== */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ==============================
+           INTRO
+        ============================== */
+        #intro {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #intro.hidden { opacity: 0; pointer-events: none; }
+
+        .loading-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+            z-index: 1100;
+            transition: width 0.1s linear;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .skip-btn {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            z-index: 1200;
+            opacity: 0;
+            animation: fadeIn 0.6s ease 0.5s forwards;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .skip-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        /* Mask Assembly */
+        .mask-scene {
+            position: relative;
+            width: 280px;
+            height: 320px;
+        }
+
+        .mask-face {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 160px;
+            height: 190px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
+            box-shadow: 0 0 60px rgba(0,82,255,0.15);
+        }
+
+        .mask-face.reveal { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+
+        .mask-eye {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .eye-outer-ring {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,82,255,0.6);
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s;
+        }
+
+        .eye-outer-ring.reveal { opacity: 1; transform: scale(1); }
+
+        .eye-mid-ring {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,82,255,0.8);
+            background: rgba(0,82,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eye-core {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 12px var(--accent), 0 0 30px var(--accent);
+            animation: eyePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes eyePulse {
+            0%, 100% { box-shadow: 0 0 12px var(--accent), 0 0 30px var(--accent); }
+            50% { box-shadow: 0 0 20px var(--accent), 0 0 50px var(--accent), 0 0 80px rgba(0,82,255,0.6); }
+        }
+
+        .mask-gold-left {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%) translateX(-20px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s;
+        }
+
+        .mask-gold-left.reveal { transform: translateY(-50%) translateX(0); opacity: 1; }
+
+        .gold-block {
+            width: 32px;
+            height: 40px;
+            background: var(--mask-gold);
+            border-radius: 2px;
+            margin-bottom: 6px;
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
+        }
+
+        .gold-block:nth-child(2) { height: 55px; }
+        .gold-block:nth-child(3) { height: 40px; }
+
+        .mask-gold-right {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%) translateX(20px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.55s;
+        }
+
+        .mask-gold-right.reveal { transform: translateY(-50%) translateX(0); opacity: 1; }
+
+        .mask-green {
+            position: absolute;
+            left: 48px;
+            top: 30px;
+            opacity: 0;
+            transform: translateY(-15px);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.65s;
+        }
+
+        .mask-green.reveal { opacity: 1; transform: translateY(0); }
+
+        .green-l { position: relative; width: 28px; height: 44px; }
+        .green-l .g-vert { position: absolute; left: 0; top: 0; width: 14px; height: 44px; background: var(--mask-green); border-radius: 2px; }
+        .green-l .g-horiz { position: absolute; left: 14px; top: 0; width: 14px; height: 14px; background: var(--mask-green); border-radius: 2px; }
+
+        .mask-magenta {
+            position: absolute;
+            bottom: 55px;
+            left: 50%;
+            transform: translateX(-50%) scaleX(0);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.7s;
+        }
+
+        .mask-magenta.reveal { transform: translateX(-50%) scaleX(1); opacity: 1; }
+
+        .magenta-bar {
+            width: 200px;
+            height: 16px;
+            background: var(--mask-magenta);
+            border-radius: 2px;
+            box-shadow: 0 0 25px rgba(192, 38, 211, 0.4);
+        }
+
+        .mask-line-left {
+            position: absolute;
+            left: 2px;
+            top: 10%;
+            width: 2px;
+            height: 0;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 1px;
+            transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.35s;
+        }
+
+        .mask-line-left.reveal { height: 80%; }
+
+        .mask-line-left-2 {
+            position: absolute;
+            left: 8px;
+            top: 15%;
+            width: 2px;
+            height: 0;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 1px;
+            transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
+        }
+
+        .mask-line-left-2.reveal { height: 70%; }
+
+        .mask-line-right {
+            position: absolute;
+            right: 2px;
+            top: 10%;
+            width: 2px;
+            height: 0;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 1px;
+            transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.35s;
+        }
+
+        .mask-line-right.reveal { height: 80%; }
+
+        .mask-line-right-2 {
+            position: absolute;
+            right: 8px;
+            top: 15%;
+            width: 2px;
+            height: 0;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 1px;
+            transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
+        }
+
+        .mask-line-right-2.reveal { height: 70%; }
+
+        .mask-gold-top {
+            position: absolute;
+            top: 48px;
+            left: 50%;
+            transform: translateX(-50%) scaleX(0);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.6s;
+        }
+
+        .mask-gold-top.reveal { transform: translateX(-50%) scaleX(1); opacity: 1; }
+
+        .gold-top-bar {
+            width: 120px;
+            height: 4px;
+            background: var(--mask-gold);
+            border-radius: 2px;
+            box-shadow: 0 0 12px rgba(250, 204, 21, 0.3);
+        }
+
+        .intro-title {
+            margin-top: 40px;
+            font-size: clamp(28px, 5vw, 48px);
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text);
+            opacity: 0;
+            transform: translateY(16px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.2s;
+        }
+
+        .intro-title.reveal { opacity: 1; transform: translateY(0); }
+
+        .intro-subtitle {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.6s ease 1.5s;
+        }
+
+        .intro-subtitle.reveal { opacity: 1; }
+
+        .intro-loading-text {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent-soft);
+            letter-spacing: 0.05em;
+            margin-top: 16px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            min-height: 1.5em;
+        }
+
+        .intro-loading-text.reveal { opacity: 0.7; }
+
+        /* ==============================
+           MAIN APP
+        ============================== */
+        #app {
+            position: relative;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+
+        #app.active { opacity: 1; pointer-events: auto; }
+
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(9,9,9,0.55);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            color: var(--text);
+            background: linear-gradient(135deg, #fff 30%, var(--accent-soft) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--glass-border);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+        }
+
+        .nav-link {
+            padding: 5px 12px;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-tertiary);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-dim);
+            color: var(--text);
+            border-color: rgba(0,82,255,0.25);
+        }
+
+        .nav-link.active-nav {
+            background: var(--accent-dim);
+            color: var(--accent-soft);
+            border-color: rgba(0,82,255,0.3);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+            50% { opacity: 0.5; box-shadow: 0 0 8px var(--green); }
+        }
+
+        .header-label { color: var(--text-secondary); letter-spacing: 0.08em; }
+        .header-meta { color: var(--text-muted); }
+
+        /* Container */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 24px 40px;
+            min-height: calc(100vh - 51px);
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        /* ==============================
+           HERO + UNIFIED VOICE
+        ============================== */
+        .hero {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 32px 0 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 200px;
+            background: radial-gradient(ellipse, rgba(0,82,255,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            animation: heroGlowPulse 5s ease-in-out infinite;
+        }
+
+        @keyframes heroGlowPulse {
+            0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+        }
+
+        .hero-logo {
+            font-size: clamp(48px, 10vw, 80px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            position: relative;
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.7) 40%, var(--accent-soft) 60%, rgba(255,255,255,0.7) 80%, rgba(255,255,255,0.95) 100%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: heroFadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both, heroShimmer 6s ease-in-out infinite 1.5s;
+        }
+
+        .hero-logo::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%) scaleX(0);
+            width: 50%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            border-radius: 1px;
+            animation: heroLineExpand 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+        }
+
+        @keyframes heroShimmer {
+            0%, 100% { background-position: 200% center; }
+            50% { background-position: -200% center; }
+        }
+
+        @keyframes heroFadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes heroLineExpand { to { transform: translateX(-50%) scaleX(1); } }
+
+        .hero-tagline {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: 0.06em;
+            margin-bottom: 28px;
+            opacity: 0;
+            animation: heroFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+        }
+
+        /* Unified Mic Section */
+        .unified-mic {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            animation: heroFadeUp 0.7s ease 0.3s forwards;
+            position: relative;
+            padding: 24px 32px;
+            border-radius: 20px;
+        }
+
+        .mic-btn {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent) 0%, #003acc 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 0 0 var(--accent-glow), 0 4px 20px rgba(0,82,255,0.3), 0 8px 40px rgba(0,82,255,0.15);
+            z-index: 1;
+        }
+
+        .mic-btn::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(0,82,255,0.18);
+            animation: micRing1 3.5s ease-in-out infinite;
+        }
+
+        .mic-btn::after {
+            content: '';
+            position: absolute;
+            inset: -16px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,82,255,0.08);
+            animation: micRing2 4s ease-in-out infinite;
+        }
+
+        @keyframes micRing1 {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.06); opacity: 0.2; }
+        }
+
+        @keyframes micRing2 {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.04); opacity: 0.1; }
+        }
+
+        .mic-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 0 10px rgba(0,82,255,0.12), 0 4px 24px rgba(0,82,255,0.4), 0 8px 48px rgba(0,82,255,0.2);
+        }
+
+        .mic-btn:active { transform: scale(0.95); }
+
+        .mic-btn.listening {
+            animation: micPulseActive 1.5s ease-in-out infinite, micGradientShift 3s ease infinite;
+            background: linear-gradient(135deg, var(--accent) 0%, #003acc 50%, #0052FF 100%);
+            background-size: 200% 200%;
+            box-shadow: 0 0 0 14px rgba(0,82,255,0.15), 0 0 40px rgba(0,82,255,0.3), 0 0 80px rgba(0,82,255,0.1);
+        }
+
+        @keyframes micPulseActive {
+            0%, 100% { box-shadow: 0 0 0 10px rgba(0,82,255,0.15), 0 0 40px rgba(0,82,255,0.25); }
+            50% { box-shadow: 0 0 0 24px rgba(0,82,255,0.06), 0 0 60px rgba(0,82,255,0.15); }
+        }
+
+        @keyframes micGradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .mic-icon {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: white;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .waveform {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 36px;
+            margin: 18px 0 12px;
+        }
+
+        .wave-bar {
+            width: 2.5px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+            opacity: 0.3;
+        }
+
+        .waveform.active .wave-bar {
+            animation: waveformAnimate 0.6s ease-in-out infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes waveformAnimate {
+            0%, 100% { height: 4px; }
+            50% { height: 30px; }
+        }
+
+        .voice-status {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+            transition: color 0.3s ease;
+            font-family: var(--mono);
+        }
+
+        .voice-status.listening { color: var(--accent-soft); }
+        .voice-status.error { color: var(--red); }
+        .voice-status.success { color: var(--green); }
+        .voice-status.processing { color: var(--amber); }
+
+        .command-input-wrap {
+            margin-top: 14px;
+            max-width: 520px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+
+        .command-input-wrap:focus-within {
+            border-color: rgba(0,82,255,0.4);
+            box-shadow: 0 0 0 3px rgba(0,82,255,0.08), 0 0 24px rgba(0,82,255,0.10);
+        }
+
+        .command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            box-shadow: none;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            padding: 12px 16px;
+            letter-spacing: 0.01em;
+        }
+
+        .command-input::placeholder {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .command-send-btn {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            margin-right: 6px;
+            border-radius: 50%;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+
+        .command-send-btn:hover {
+            color: var(--text);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .command-send-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* ==============================
+           PIPELINE VISUALIZATION
+        ============================== */
+        .pipeline-section {
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 24px;
+            opacity: 0;
+            animation: heroFadeUp 0.7s ease 0.2s forwards;
+        }
+
+        .pipeline-card {
+            background: var(--glass);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .pipeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .pipeline-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pipeline-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        .pipeline-title {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+        }
+
+        .pipeline-meta {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .pipeline-svg-wrap {
+            padding: 8px 12px;
+            overflow-x: auto;
+        }
+
+        .pipeline-svg-wrap svg {
+            display: block;
+            width: 100%;
+            height: auto;
+            min-width: 480px;
+        }
+
+        /* SVG styles */
+        .node-box {
+            fill: var(--bg-node);
+            stroke: rgba(255,255,255,0.08);
+            stroke-width: 1;
+        }
+
+        .node-box-agent {
+            fill: var(--bg-active);
+            stroke: var(--accent);
+            stroke-width: 1.5;
+        }
+
+        .node-title {
+            fill: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .node-subtitle {
+            fill: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8px;
+        }
+
+        .node-label {
+            fill: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .conn-path {
+            fill: none;
+            stroke: rgba(255,255,255,0.1);
+            stroke-width: 1;
+            stroke-dasharray: 4 3;
+        }
+
+        .flow-dot {
+            fill: var(--accent);
+            filter: drop-shadow(0 0 3px rgba(0,82,255,0.6));
+        }
+
+        .status-circle-green {
+            fill: var(--green);
+            opacity: 0.9;
+        }
+
+        .status-circle-amber {
+            fill: var(--amber);
+            animation: amberPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes amberPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .agent-pulse-dot {
+            fill: var(--accent);
+            animation: agentDotPulse 1.6s ease-in-out infinite;
+        }
+
+        .agent-pulse-dot:nth-child(2) { animation-delay: 0.3s; }
+        .agent-pulse-dot:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes agentDotPulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Pipeline message */
+        .pipeline-message {
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .pipeline-message .prompt-char {
+            color: var(--accent-soft);
+            font-weight: 500;
+        }
+
+        .pipeline-message .msg-text {
+            transition: opacity 0.4s ease;
+        }
+
+        /* Pipeline stats */
+        .pipeline-stats {
+            display: flex;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-item {
+            flex: 1;
+            padding: 12px 14px;
+            text-align: center;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-item:last-child { border-right: none; }
+
+        .stat-label {
+            font-family: var(--mono);
+            font-size: 8px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .stat-value.blue { color: var(--accent-soft); }
+
+        /* ==============================
+           AGENT CARDS GRID
+        ============================== */
+        .agents-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 28px;
+            opacity: 0;
+            animation: heroFadeUp 0.7s ease 0.4s forwards;
+        }
+
+        .agent-card {
+            background: var(--glass);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .agent-card:hover {
+            border-color: rgba(0,82,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .agent-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .agent-card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .agent-card-title .icon { font-size: 15px; }
+
+        .agent-name-sub {
+            font-family: var(--mono);
+            font-size: 9px;
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+        }
+
+        .agent-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--green);
+        }
+
+        .agent-status-badge .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        .agent-card-body {
+            padding: 16px;
+        }
+
+        /* ==============================
+           LOST TUNE CARD (Music)
+        ============================== */
+        .voice-commands {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 14px;
+        }
+
+        .voice-cmd-pill {
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            color: var(--text-tertiary);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .voice-cmd-pill:hover {
+            background: var(--accent-dim);
+            border-color: rgba(0,82,255,0.25);
+            color: var(--text);
+        }
+
+        .card-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .voice-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .voice-history-list::-webkit-scrollbar { width: 4px; }
+        .voice-history-list::-webkit-scrollbar-track { background: transparent; }
+        .voice-history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .voice-history-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .voice-history-item:hover { background: var(--accent-dim); }
+
+        .voice-history-item .icon { font-size: 12px; opacity: 0.5; }
+        .voice-history-item .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .voice-history-item .time { font-family: var(--mono); font-size: 9px; color: var(--text-muted); white-space: nowrap; }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px 12px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--mono);
+        }
+
+        /* ==============================
+           BROOK CARD (Spotify)
+        ============================== */
+        .spotify-player-wrap {
+            margin-bottom: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.2);
+            min-height: 80px;
+        }
+
+        .spotify-player-wrap iframe {
+            display: block;
+            border: none;
+            border-radius: 12px;
+        }
+
+        /* ==============================
+           SPEED DRAFT CARD (Email)
+        ============================== */
+        .email-compose {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .email-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .email-field label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-family: var(--mono);
+        }
+
+        .email-field input,
+        .email-field textarea {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.2s ease;
+            resize: none;
+        }
+
+        .email-field input:focus,
+        .email-field textarea:focus {
+            border-color: rgba(0,82,255,0.4);
+        }
+
+        .email-field input::placeholder,
+        .email-field textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .email-field textarea {
+            min-height: 60px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .email-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .email-send-btn {
+            flex: 1;
+            padding: 10px;
+            background: linear-gradient(135deg, var(--accent) 0%, #003acc 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .email-send-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,82,255,0.3);
+        }
+
+        .email-send-btn:active { transform: translateY(0); }
+
+        .email-send-btn.sending {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .email-send-btn .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        .email-send-btn.sending .spinner { display: block; }
+        .email-send-btn.sending .btn-text { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .gmail-link-btn {
+            padding: 10px 14px;
+            background: rgba(34,197,94,0.15);
+            border: 1px solid rgba(34,197,94,0.3);
+            border-radius: 8px;
+            color: var(--green);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .gmail-link-btn.visible { display: flex; }
+
+        .gmail-link-btn:hover {
+            background: rgba(34,197,94,0.25);
+            transform: translateY(-1px);
+        }
+
+        .email-status {
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            min-height: 1.4em;
+        }
+
+        .email-status.success { color: var(--green); }
+        .email-status.error { color: var(--red); }
+        .email-status.processing { color: var(--amber); }
+
+        .email-recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .email-recent-list::-webkit-scrollbar { width: 4px; }
+        .email-recent-list::-webkit-scrollbar-track { background: transparent; }
+        .email-recent-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .email-recent-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        .email-recent-item .icon { font-size: 12px; opacity: 0.5; }
+        .email-recent-item .subject { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .email-recent-item .time { font-family: var(--mono); font-size: 9px; color: var(--text-muted); white-space: nowrap; }
+
+        /* ==============================
+           VIDEO SECTION
+        ============================== */
+        .video-section {
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 32px;
+            opacity: 0;
+            animation: heroFadeUp 0.7s ease 0.5s forwards;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        .video-container.visible { display: block; animation: sectionReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-info {
+            margin-top: 12px;
+            padding: 14px 18px;
+            background: var(--glass);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .video-info.visible { display: block; animation: sectionReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+
+        @keyframes sectionReveal {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .video-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+        .video-channel { font-size: 12px; color: var(--text-secondary); }
+
+        /* ==============================
+           FOOTER
+        ============================== */
+        .footer {
+            text-align: center;
+            padding: 28px 24px;
+            color: var(--text-muted);
+            font-size: 11px;
+            border-top: 1px solid var(--glass-border);
+            letter-spacing: 0.03em;
+            font-family: var(--mono);
+        }
+
+        /* ==============================
+           UTILITY
+        ============================== */
+
+        /* ==============================
+           RESPONSIVE
+        ============================== */
+        @media (max-width: 700px) {
+            .agents-grid { grid-template-columns: 1fr; }
+            .header-status { display: none; }
+            .header-divider { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 10px 16px; }
+            .logo-text { font-size: 17px; }
+            .nav-link { padding: 4px 10px; font-size: 10px; }
+            .main-container { padding: 16px 16px 32px; }
+            .mask-scene { width: 220px; height: 260px; }
+            .mask-face { width: 120px; height: 150px; }
+            .mask-gold-left, .mask-gold-right { display: none; }
+            .mask-line-left, .mask-line-right, .mask-line-left-2, .mask-line-right-2 { display: none; }
+            .magenta-bar { width: 150px; }
+            .gold-top-bar { width: 80px; }
+            .hero-glow { width: 280px; }
+            .orb-1 { width: 300px; height: 300px; }
+            .orb-2 { width: 250px; height: 250px; }
+            .pipeline-svg-wrap svg { min-width: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Ambient orbs -->
+    <div class="ambient-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <!-- Particles -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- Loading Bar -->
+    <div class="loading-bar" id="loading-bar"></div>
+
+    <!-- ==============================
+         INTRO — CYBERPUNK MASK
+    ============================== -->
+    <div id="intro">
+        <div class="mask-scene">
+            <div class="mask-line-left" id="ml1"></div>
+            <div class="mask-line-left-2" id="ml2"></div>
+            <div class="mask-line-right" id="mr1"></div>
+            <div class="mask-line-right-2" id="mr2"></div>
+            <div class="mask-gold-left" id="mgl">
+                <div class="gold-block"></div>
+                <div class="gold-block"></div>
+                <div class="gold-block"></div>
+            </div>
+            <div class="mask-gold-right" id="mgr">
+                <div class="gold-block"></div>
+                <div class="gold-block"></div>
+                <div class="gold-block"></div>
+            </div>
+            <div class="mask-green" id="mg">
+                <div class="green-l">
+                    <div class="g-vert"></div>
+                    <div class="g-horiz"></div>
+                </div>
+            </div>
+            <div class="mask-gold-top" id="mgt">
+                <div class="gold-top-bar"></div>
+            </div>
+            <div class="mask-face" id="mf">
+                <div class="mask-eye">
+                    <div class="eye-outer-ring" id="eor">
+                        <div class="eye-mid-ring">
+                            <div class="eye-core"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mask-magenta" id="mm">
+                <div class="magenta-bar"></div>
+            </div>
+        </div>
+        <div class="intro-title" id="intro-title">NIKA</div>
+        <div class="intro-subtitle" id="intro-subtitle">Your AI Voice Assistant</div>
+        <div class="intro-loading-text" id="intro-loading-text"></div>
+    </div>
+
+    <button class="skip-btn" id="skip-btn">Skip</button>
+
+    <!-- ==============================
+         MAIN APP
+    ============================== -->
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-text">NIKA</div>
+                <div class="header-divider"></div>
+                <nav class="nav-links">
+                    <a href="#pipeline-section" class="nav-link active-nav">Pipeline</a>
+                    <a href="#lost-tune-section" class="nav-link">Lost Tune</a>
+                    <a href="#speed-draft-section" class="nav-link">Speed Draft</a>
+                    <a href="#brook-section" class="nav-link">Brook</a>
+                </nav>
+            </div>
+            <div class="header-status">
+                <div class="status-dot"></div>
+                <span class="header-label">AGENTIC &middot; LIVE</span>
+                <span class="header-meta">&middot; 3 agents</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-container">
+            <!-- Hero + Unified Voice -->
+            <section class="hero">
+                <div class="hero-glow"></div>
+                <h1 class="hero-logo">NIKA</h1>
+                <p class="hero-tagline">Your AI Voice Assistant &mdash; Music & Email</p>
+
+                <!-- Unified Mic -->
+                <div class="unified-mic">
+                    <button class="mic-btn" id="mic-btn" aria-label="Talk to NIKA">
+                        <svg class="mic-icon" viewBox="0 0 24 24">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                    </button>
+                    <div class="waveform" id="waveform">
+                        <div class="wave-bar" style="animation-delay:0s"></div>
+                        <div class="wave-bar" style="animation-delay:0.07s"></div>
+                        <div class="wave-bar" style="animation-delay:0.14s"></div>
+                        <div class="wave-bar" style="animation-delay:0.21s"></div>
+                        <div class="wave-bar" style="animation-delay:0.28s"></div>
+                        <div class="wave-bar" style="animation-delay:0.35s"></div>
+                        <div class="wave-bar" style="animation-delay:0.42s"></div>
+                        <div class="wave-bar" style="animation-delay:0.49s"></div>
+                        <div class="wave-bar" style="animation-delay:0.56s"></div>
+                        <div class="wave-bar" style="animation-delay:0.63s"></div>
+                    </div>
+                    <div class="voice-status" id="status-text">Tap mic or press Space to talk to NIKA</div>
+                    <div class="command-input-wrap">
+                        <input type="text" class="command-input" id="command-input"
+                            placeholder="Type a command — play lofi, send email to john about meeting..."
+                            autocomplete="off" spellcheck="false" />
+                        <button class="command-send-btn" id="command-send-btn" aria-label="Send">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==============================
+                 PIPELINE VISUALIZATION
+            ============================== -->
+            <section class="pipeline-section" id="pipeline-section">
+                <div class="pipeline-card">
+                    <div class="pipeline-header">
+                        <div class="pipeline-header-left">
+                            <div class="pipeline-dot"></div>
+                            <span class="pipeline-title">AGENT PIPELINE &middot; LIVE</span>
+                        </div>
+                        <span class="pipeline-meta">3 agents &middot; 0 errors</span>
+                    </div>
+
+                    <div class="pipeline-svg-wrap">
+                        <svg viewBox="0 0 580 172" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.15)" />
+                                </marker>
+                            </defs>
+
+                            <!-- Connection paths -->
+                            <path class="conn-path" d="M116,82 C145,82 160,45 175,45" marker-end="url(#arrow)" />
+                            <path class="conn-path" d="M116,82 C145,82 160,127 175,127" marker-end="url(#arrow)" />
+                            <path class="conn-path" d="M305,45 L396,34" marker-end="url(#arrow)" />
+                            <path class="conn-path" d="M305,127 C350,127 375,84 396,84" marker-end="url(#arrow)" />
+                            <path class="conn-path" d="M305,127 L396,134" marker-end="url(#arrow)" />
+
+                            <!-- Animated flow dots -->
+                            <circle class="flow-dot" r="3" opacity="0.9">
+                                <animateMotion dur="2.4s" repeatCount="indefinite" path="M116,82 C145,82 160,45 175,45" />
+                            </circle>
+                            <circle class="flow-dot" r="2" opacity="0.5">
+                                <animateMotion dur="2.4s" repeatCount="indefinite" begin="0.8s" path="M116,82 C145,82 160,45 175,45" />
+                            </circle>
+                            <circle class="flow-dot" r="3" opacity="0.9">
+                                <animateMotion dur="2.8s" repeatCount="indefinite" path="M116,82 C145,82 160,127 175,127" />
+                            </circle>
+                            <circle class="flow-dot" r="2" opacity="0.5">
+                                <animateMotion dur="2.8s" repeatCount="indefinite" begin="1s" path="M116,82 C145,82 160,127 175,127" />
+                            </circle>
+                            <circle class="flow-dot" r="3" opacity="0.9">
+                                <animateMotion dur="1.8s" repeatCount="indefinite" path="M305,45 L396,34" />
+                            </circle>
+                            <circle class="flow-dot" r="2" opacity="0.5">
+                                <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.6s" path="M305,45 L396,34" />
+                            </circle>
+                            <circle class="flow-dot" r="3" opacity="0.9">
+                                <animateMotion dur="2.2s" repeatCount="indefinite" path="M305,127 C350,127 375,84 396,84" />
+                            </circle>
+                            <circle class="flow-dot" r="3" opacity="0.9">
+                                <animateMotion dur="1.8s" repeatCount="indefinite" path="M305,127 L396,134" />
+                            </circle>
+                            <circle class="flow-dot" r="2" opacity="0.5">
+                                <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.9s" path="M305,127 L396,134" />
+                            </circle>
+
+                            <!-- Node: Voice Input -->
+                            <rect class="node-box" x="16" y="60" width="100" height="44" rx="6" />
+                            <text class="node-title" x="66" y="78" text-anchor="middle">&#127908; NIKA Voice</text>
+                            <text class="node-subtitle" x="66" y="94" text-anchor="middle">speak now</text>
+
+                            <!-- Node: Lost Tune (Voice Agent) -->
+                            <rect class="node-box-agent" x="175" y="15" width="130" height="60" rx="6" />
+                            <text class="node-title" x="240" y="36" text-anchor="middle" fill="rgba(255,255,255,0.88)">LOST TUNE</text>
+                            <text class="node-subtitle" x="240" y="50" text-anchor="middle">Music Agent</text>
+                            <text class="node-subtitle" x="240" y="62" text-anchor="middle">speech-api</text>
+                            <circle class="agent-pulse-dot" cx="224" cy="64" r="2" />
+                            <circle class="agent-pulse-dot" cx="234" cy="64" r="2" />
+                            <circle class="agent-pulse-dot" cx="244" cy="64" r="2" />
+
+                            <!-- Node: Speed Draft (Email Agent) -->
+                            <rect class="node-box-agent" x="175" y="97" width="130" height="60" rx="6" />
+                            <text class="node-title" x="240" y="118" text-anchor="middle" fill="rgba(255,255,255,0.88)">SPEED DRAFT</text>
+                            <text class="node-subtitle" x="240" y="132" text-anchor="middle">Email Agent</text>
+                            <text class="node-subtitle" x="240" y="144" text-anchor="middle">gemini + smtp</text>
+                            <circle class="agent-pulse-dot" cx="224" cy="146" r="2" />
+                            <circle class="agent-pulse-dot" cx="234" cy="146" r="2" />
+                            <circle class="agent-pulse-dot" cx="244" cy="146" r="2" />
+
+                            <!-- Output: Play Music -->
+                            <rect class="node-box" x="396" y="20" width="116" height="28" rx="6" />
+                            <text class="node-label" x="410" y="39">&#127925; Play Music</text>
+                            <circle class="status-circle-green" cx="498" cy="34" r="4" />
+
+                            <!-- Output: Email Draft -->
+                            <rect class="node-box" x="396" y="70" width="116" height="28" rx="6" />
+                            <text class="node-label" x="410" y="89">&#128231; Email Draft</text>
+                            <circle class="status-circle-amber" cx="498" cy="84" r="4" />
+
+                            <!-- Output: Send Email -->
+                            <rect class="node-box" x="396" y="120" width="116" height="28" rx="6" />
+                            <text class="node-label" x="410" y="139">&#128228; Gmail</text>
+                            <circle class="status-circle-amber" cx="498" cy="134" r="4" />
+                        </svg>
+                    </div>
+
+                    <div class="pipeline-message">
+                        <span class="prompt-char">&gt;</span>
+                        <span class="msg-text" id="pipeline-msg">NIKA is ready. Say "play music" or "send email"...</span>
+                    </div>
+
+                    <div class="pipeline-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">WORKFLOWS</div>
+                            <div class="stat-value" id="stat-workflows">1,248</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">COMMANDS</div>
+                            <div class="stat-value" id="stat-commands">3,891</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">RESP TIME</div>
+                            <div class="stat-value" id="stat-resp">189ms</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">STACK</div>
+                            <div class="stat-value blue">Gemini &middot; Spotify</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==============================
+                 AGENT CARDS
+            ============================== -->
+            <div class="agents-grid">
+                <!-- Lost Tune Card -->
+                <div class="agent-card" id="lost-tune-section">
+                    <div class="agent-card-header">
+                        <div class="agent-card-title">
+                            <span class="icon">&#127925;</span>
+                            <div>
+                                Lost Tune
+                                <div class="agent-name-sub">Music Agent</div>
+                            </div>
+                        </div>
+                        <div class="agent-status-badge">
+                            <div class="dot"></div> Active
+                        </div>
+                    </div>
+                    <div class="agent-card-body">
+                        <div class="card-label">Quick Commands</div>
+                        <div class="voice-commands">
+                            <button class="voice-cmd-pill" data-command="play lofi hip hop">Lofi</button>
+                            <button class="voice-cmd-pill" data-command="play jazz music">Jazz</button>
+                            <button class="voice-cmd-pill" data-command="play rock music">Rock</button>
+                            <button class="voice-cmd-pill" data-command="play pop music">Pop</button>
+                            <button class="voice-cmd-pill" data-command="play classical music">Classical</button>
+                        </div>
+                        <div class="card-label">Recent Commands</div>
+                        <div class="voice-history-list" id="history-list">
+                            <div class="empty-state">No commands yet. Talk to NIKA!</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Speed Draft Card -->
+                <div class="agent-card" id="speed-draft-section">
+                    <div class="agent-card-header">
+                        <div class="agent-card-title">
+                            <span class="icon">&#9993;</span>
+                            <div>
+                                Speed Draft
+                                <div class="agent-name-sub">Email Agent</div>
+                            </div>
+                        </div>
+                        <div class="agent-status-badge">
+                            <div class="dot"></div> Active
+                        </div>
+                    </div>
+                    <div class="agent-card-body">
+                        <div class="email-compose">
+                            <div class="email-field">
+                                <label>To</label>
+                                <input type="email" id="email-to" placeholder="recipient@email.com" />
+                            </div>
+                            <div class="email-field">
+                                <label>Subject</label>
+                                <input type="text" id="email-subject" placeholder="Meeting Follow-Up" />
+                            </div>
+                            <div class="email-field">
+                                <label>Body</label>
+                                <textarea id="email-body" placeholder="Hi team,&#10;&#10;Here's the summary..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="email-actions">
+                            <button class="email-send-btn" id="email-send-btn">
+                                <div class="spinner"></div>
+                                <span class="btn-text">&#9993; Compose in Gmail</span>
+                            </button>
+                            <a class="gmail-link-btn" id="gmail-link-btn" href="#" target="_blank" rel="noopener">
+                                Open Gmail &#8599;
+                            </a>
+                        </div>
+
+                        <div class="email-status" id="email-status"></div>
+
+                        <div class="card-label">Recent Emails</div>
+                        <div class="email-recent-list" id="email-recent-list">
+                            <div class="empty-state">No emails yet. Say "send email" to NIKA!</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brook Card -->
+                <div class="agent-card" id="brook-section">
+                    <div class="agent-card-header">
+                        <div class="agent-card-title">
+                            <span class="icon">&#127926;</span>
+                            <div>
+                                Brook
+                                <div class="agent-name-sub">Spotify Agent</div>
+                            </div>
+                        </div>
+                        <div class="agent-status-badge">
+                            <div class="dot"></div> Active
+                        </div>
+                    </div>
+                    <div class="agent-card-body">
+                        <div class="card-label">Quick Commands</div>
+                        <div class="voice-commands">
+                            <button class="voice-cmd-pill" data-command="play lofi hip hop on spotify">Lofi</button>
+                            <button class="voice-cmd-pill" data-command="play jazz music on spotify">Jazz</button>
+                            <button class="voice-cmd-pill" data-command="play rock music on spotify">Rock</button>
+                            <button class="voice-cmd-pill" data-command="play pop music on spotify">Pop</button>
+                            <button class="voice-cmd-pill" data-command="play classical music on spotify">Classical</button>
+                            <button class="voice-cmd-pill" data-command="play hip hop on spotify">Hip Hop</button>
+                        </div>
+                        <div class="card-label">Spotify Player</div>
+                        <div class="spotify-player-wrap" id="spotify-player-wrap">
+                            <div class="empty-state">Say a song name or lyrics to Brook!</div>
+                        </div>
+                        <div class="card-label">Recent Tracks</div>
+                        <div class="voice-history-list" id="brook-history-list">
+                            <div class="empty-state">No tracks yet. Talk to Brook!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Section -->
+            <section class="video-section">
+                <div class="video-container" id="video-container">
+                    <div id="youtube-player"></div>
+                </div>
+                <div class="video-info" id="video-info">
+                    <div class="video-title" id="video-title"></div>
+                    <div class="video-channel" id="video-channel"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            NIKA &middot; Agentic Voice Platform &middot; Lost Tune &times; Speed Draft &times; Brook &middot; Powered by Gemini, Spotify &amp; Speech API
+        </footer>
+    </div>
+
+    <!-- ==============================
+         SCRIPTS
+    ============================== -->
+    <script>
+        // ==============================
+        // PARTICLES
+        // ==============================
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5 + 0.3;
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.speedY = (Math.random() - 0.5) * 0.3;
+                this.opacity = Math.random() * 0.2 + 0.05;
+                this.color = ['0, 82, 255', '255, 255, 255'][Math.floor(Math.random() * 2)];
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${this.color}, ${this.opacity})`;
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 40; i++) particles.push(new Particle());
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            particles.forEach((a, i) => {
+                particles.slice(i + 1).forEach(b => {
+                    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.strokeStyle = `rgba(0, 82, 255, ${0.03 * (1 - dist / 120)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(animateParticles);
+        }
+
+        resizeCanvas();
+        initParticles();
+        animateParticles();
+        window.addEventListener('resize', () => { resizeCanvas(); initParticles(); });
+
+        // ==============================
+        // INTRO ANIMATION
+        // ==============================
+        const intro = document.getElementById('intro');
+        const app = document.getElementById('app');
+        const loadingBar = document.getElementById('loading-bar');
+        const skipBtn = document.getElementById('skip-btn');
+        const introTitle = document.getElementById('intro-title');
+        const introSubtitle = document.getElementById('intro-subtitle');
+        const introLoadingText = document.getElementById('intro-loading-text');
+        let introComplete = false;
+
+        const maskElements = [
+            document.getElementById('ml1'), document.getElementById('ml2'),
+            document.getElementById('mr1'), document.getElementById('mr2'),
+            document.getElementById('mgl'), document.getElementById('mgr'),
+            document.getElementById('mgt'), document.getElementById('mf'),
+            document.getElementById('mg'), document.getElementById('mm'),
+            document.getElementById('eor'),
+        ];
+
+        const loadingMessages = [
+            'Initializing voice engine...',
+            'Connecting Lost Tune agent...',
+            'Connecting Speed Draft agent...',
+            'Connecting Brook agent...',
+            'Loading Gemini & Spotify integration...',
+            'Pipeline ready. Ask NIKA anything.',
+        ];
+
+        function playIntro() {
+            let progress = 0;
+            const loadInterval = setInterval(() => {
+                progress += 2;
+                loadingBar.style.width = progress + '%';
+                if (progress >= 100) clearInterval(loadInterval);
+            }, 70);
+
+            maskElements.forEach((el, i) => {
+                setTimeout(() => el.classList.add('reveal'), 300 + i * 120);
+            });
+
+            setTimeout(() => introTitle.classList.add('reveal'), 1400);
+            setTimeout(() => introSubtitle.classList.add('reveal'), 1700);
+            setTimeout(() => introLoadingText.classList.add('reveal'), 1900);
+
+            let msgIdx = 0;
+            const msgInterval = setInterval(() => {
+                introLoadingText.textContent = loadingMessages[msgIdx];
+                msgIdx++;
+                if (msgIdx >= loadingMessages.length) clearInterval(msgInterval);
+            }, 450);
+
+            setTimeout(() => transitionToApp(), 3400);
+        }
+
+        function transitionToApp() {
+            if (introComplete) return;
+            introComplete = true;
+            intro.classList.add('hidden');
+            skipBtn.style.display = 'none';
+            setTimeout(() => app.classList.add('active'), 500);
+        }
+
+        skipBtn.addEventListener('click', transitionToApp);
+        setTimeout(playIntro, 200);
+
+        // ==============================
+        // PIPELINE MESSAGE CYCLING
+        // ==============================
+        const pipelineMsg = document.getElementById('pipeline-msg');
+        const pipelineMessages = [
+            'NIKA is ready. Say "play music", "send email", or try Brook!',
+            'Lost Tune: YouTube search engine online.',
+            'Speed Draft: Gemini email agent online.',
+            'Brook: Spotify integration ready.',
+            'Pipeline healthy. 3 agents, 0 errors.',
+            'Awaiting voice trigger from NIKA...',
+        ];
+        let pipelineMsgIdx = 0;
+
+        setInterval(() => {
+            pipelineMsg.style.opacity = '0';
+            setTimeout(() => {
+                pipelineMsgIdx = (pipelineMsgIdx + 1) % pipelineMessages.length;
+                pipelineMsg.textContent = pipelineMessages[pipelineMsgIdx];
+                pipelineMsg.style.opacity = '1';
+            }, 400);
+        }, 3500);
+
+        // ==============================
+        // PIPELINE STATS
+        // ==============================
+        let statWorkflows = 1248;
+        let statCommands = 3891;
+
+        setInterval(() => {
+            statWorkflows += Math.floor(Math.random() * 3) + 1;
+            statCommands += Math.floor(Math.random() * 5) + 1;
+            document.getElementById('stat-workflows').textContent = statWorkflows.toLocaleString();
+            document.getElementById('stat-commands').textContent = statCommands.toLocaleString();
+            document.getElementById('stat-resp').textContent = (160 + Math.floor(Math.random() * 60)) + 'ms';
+        }, 7200);
+
+        // ==============================
+        // YOUTUBE PLAYER
+        // ==============================
+        let player;
+        let playerReady = false;
+
+        const ytTag = document.createElement('script');
+        ytTag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(ytTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '100%',
+                width: '100%',
+                videoId: '',
+                playerVars: { autoplay: 1, controls: 1, modestbranding: 1, rel: 0 },
+                events: { onReady: () => { playerReady = true; } }
+            });
+        }
+
+        // ==============================
+        // UNIFIED VOICE — SPEECH RECOGNITION
+        // ==============================
+        const micBtn = document.getElementById('mic-btn');
+        const statusText = document.getElementById('status-text');
+        const commandInput = document.getElementById('command-input');
+        const commandSendBtn = document.getElementById('command-send-btn');
+        const waveform = document.getElementById('waveform');
+        const historyList = document.getElementById('history-list');
+        let isListening = false;
+        let recognition = null;
+        let commandHistory = [];
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.classList.add('listening');
+                statusText.textContent = 'NIKA is listening...';
+                statusText.className = 'voice-status listening';
+                waveform.classList.add('active');
+                waveform.classList.add('active');
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                updateRecognizedText(transcript);
+                if (event.results[event.resultIndex].isFinal) {
+                    processCommand(transcript.toLowerCase().trim());
+                }
+            };
+
+            recognition.onerror = (event) => {
+                stopListening();
+                if (event.error === 'not-allowed') {
+                    statusText.textContent = 'Microphone access denied';
+                    statusText.className = 'voice-status error';
+                } else if (event.error === 'no-speech') {
+                    statusText.textContent = 'No speech detected. Try again.';
+                    statusText.className = 'voice-status';
+                } else {
+                    statusText.textContent = 'Error: ' + event.error;
+                    statusText.className = 'voice-status error';
+                }
+            };
+
+            recognition.onend = () => stopListening();
+        } else {
+            statusText.textContent = 'Speech not supported. Try Chrome.';
+            statusText.className = 'voice-status error';
+            micBtn.style.opacity = '0.5';
+        }
+
+        function startListening() {
+            if (recognition && !isListening) {
+                try { recognition.start(); } catch (e) {}
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            micBtn.classList.remove('listening');
+            statusText.textContent = 'Tap mic or press Space to talk to NIKA';
+            statusText.className = 'voice-status';
+            waveform.classList.remove('active');
+        }
+
+        function updateRecognizedText(text) {
+            commandInput.value = text;
+        }
+
+        // ==============================
+        // UNIFIED COMMAND ROUTING
+        // ==============================
+        const MUSIC_KEYWORDS = ['play', 'music', 'song', 'songs', 'artist', 'album', 'genre', 'lofi', 'jazz', 'rock', 'pop', 'classical', 'hip hop', 'electronic', 'beat', 'playlist', 'listen', 'youtube'];
+        const EMAIL_KEYWORDS = ['email', 'send', 'draft', 'compose', 'mail', 'message', 'inbox', 'reply', 'forward', 'gmail'];
+        const SPOTIFY_KEYWORDS = ['spotify', 'brook'];
+
+        function isEmailCommand(text) {
+            return EMAIL_KEYWORDS.some(kw => text.includes(kw)) && !text.includes('play');
+        }
+
+        function isMusicCommand(text) {
+            return MUSIC_KEYWORDS.some(kw => text.includes(kw));
+        }
+
+        function isSpotifyCommand(text) {
+            return SPOTIFY_KEYWORDS.some(kw => text.includes(kw));
+        }
+
+        async function processCommand(text) {
+            if (isSpotifyCommand(text)) {
+                // ── BROOK: Music via Spotify ──
+                statusText.textContent = 'Brook: Searching Spotify...';
+                statusText.className = 'voice-status processing';
+                pipelineMsg.textContent = `Brook: Searching Spotify for "${text}"...`;
+
+                try {
+                    const resp = await fetch('/spotify/play', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: text })
+                    });
+                    const data = await resp.json();
+
+                    if (data.success && data.embed_url) {
+                        // Load Spotify embed
+                        const spotifyWrap = document.getElementById('spotify-player-wrap');
+                        spotifyWrap.innerHTML = `<iframe src="${data.embed_url}" width="100%" height="152" frameBorder="0" allowfullscreen allow="autoplay; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="border-radius: 12px;"></iframe>`;
+
+                        statusText.textContent = `Brook: Now playing ${data.track}!`;
+                        statusText.className = 'voice-status success';
+                        pipelineMsg.textContent = `Brook: Playing "${data.track}" by ${data.artist} on Spotify`;
+
+                        // Add to Brook history
+                        addBrookTrack(data.track, data.artist);
+                    } else {
+                        // Fallback: open Spotify search
+                        window.open(`https://open.spotify.com/search/${encodeURIComponent(text)}`, '_blank');
+                        statusText.textContent = 'Brook: Opened Spotify search';
+                        statusText.className = 'voice-status';
+                    }
+                } catch (err) {
+                    // Fallback: open Spotify search
+                    window.open(`https://open.spotify.com/search/${encodeURIComponent(text)}`, '_blank');
+                    statusText.textContent = 'Brook: Opened Spotify (offline mode)';
+                    statusText.className = 'voice-status';
+                    console.error('Spotify API error:', err);
+                }
+
+                addToHistory(text, 'spotify');
+                stopListening();
+
+            } else if (isEmailCommand(text)) {
+                // ── SPEED DRAFT: Email via Gemini ──
+                statusText.textContent = 'Speed Draft: Processing with Gemini...';
+                statusText.className = 'voice-status processing';
+                pipelineMsg.textContent = 'Speed Draft: Generating email via Gemini...';
+
+                try {
+                    const resp = await fetch('/agent', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: text })
+                    });
+                    const data = await resp.json();
+
+                    if (data.success && data.email_generated) {
+                        // Fill the Speed Draft form
+                        document.getElementById('email-to').value = data.recipient || '';
+                        document.getElementById('email-subject').value = data.subject || '';
+                        document.getElementById('email-body').value = data.body || '';
+
+                        // Show Gmail link
+                        const gmailBtn = document.getElementById('gmail-link-btn');
+                        gmailBtn.href = data.gmail_url;
+                        gmailBtn.classList.add('visible');
+
+                        setEmailStatus('Email drafted! Review below or open in Gmail.', 'success');
+                        statusText.textContent = 'Speed Draft: Email ready!';
+                        statusText.className = 'voice-status success';
+                        pipelineMsg.textContent = `Speed Draft: Email to ${data.recipient || 'recipient'} — "${data.subject || 'draft'}"`;
+
+                        // Add to recent emails
+                        addRecentEmail(data.subject || 'Draft', data.recipient || '—');
+
+                        // Scroll to Speed Draft card
+                        document.getElementById('speed-draft-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        setEmailStatus(data.message || 'Failed to generate email.', 'error');
+                        statusText.textContent = 'Speed Draft: ' + (data.message || 'Error');
+                        statusText.className = 'voice-status error';
+                    }
+                } catch (err) {
+                    setEmailStatus('Backend not reachable. Is Flask running?', 'error');
+                    statusText.textContent = 'Speed Draft: Connection error';
+                    statusText.className = 'voice-status error';
+                    console.error('Email API error:', err);
+                }
+
+                addToHistory(text, 'email');
+                stopListening();
+
+            } else if (isMusicCommand(text)) {
+                // ── LOST TUNE: Music via YouTube ──
+                statusText.textContent = 'Lost Tune: Searching YouTube...';
+                statusText.className = 'voice-status processing';
+                pipelineMsg.textContent = `Lost Tune: Searching for "${text}"...`;
+
+                try {
+                    const resp = await fetch('/youtube/play', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: text })
+                    });
+                    const data = await resp.json();
+
+                    if (data.success && data.url) {
+                        // Load video in iframe
+                        const videoContainer = document.getElementById('video-container');
+                        videoContainer.classList.add('visible');
+                        document.getElementById('video-info').classList.add('visible');
+                        document.getElementById('video-title').textContent = data.query || text;
+                        document.getElementById('video-channel').textContent = 'Lost Tune · Playing via YouTube';
+
+                        // Use player if ready, else use iframe directly
+                        if (playerReady && player && player.loadVideoById) {
+                            const videoIdMatch = data.url.match(/embed\/([^?]+)/);
+                            if (videoIdMatch) {
+                                player.loadVideoById(videoIdMatch[1]);
+                            }
+                        } else {
+                            videoContainer.innerHTML = `<iframe src="${data.url}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                        }
+
+                        statusText.textContent = 'Lost Tune: Now playing!';
+                        statusText.className = 'voice-status success';
+                        pipelineMsg.textContent = `Lost Tune: Playing "${data.query || text}"`;
+                    } else {
+                        // Fallback: open YouTube search
+                        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`, '_blank');
+                        statusText.textContent = 'Lost Tune: Opened YouTube search';
+                        statusText.className = 'voice-status';
+                    }
+                } catch (err) {
+                    // Fallback: open YouTube search
+                    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`, '_blank');
+                    statusText.textContent = 'Lost Tune: Opened YouTube (offline mode)';
+                    statusText.className = 'voice-status';
+                    console.error('YouTube API error:', err);
+                }
+
+                addToHistory(text, 'music');
+                stopListening();
+
+            } else {
+                // ── AMBIGUOUS: Default to music ──
+                statusText.textContent = 'NIKA: Trying as music search...';
+                statusText.className = 'voice-status';
+                window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`, '_blank');
+                addToHistory(text, 'music');
+                stopListening();
+            }
+        }
+
+        // ==============================
+        // HISTORY
+        // ==============================
+        function addToHistory(text, type) {
+            commandHistory.unshift({ text, type, time: new Date() });
+            if (commandHistory.length > 10) commandHistory.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (commandHistory.length === 0) {
+                historyList.innerHTML = '<div class="empty-state">No commands yet. Talk to NIKA!</div>';
+                return;
+            }
+            historyList.innerHTML = commandHistory.map((item, i) => {
+                const icon = item.type === 'email' ? '&#9993;' : item.type === 'spotify' ? '&#127926;' : '&#127925;';
+                return `
+                <div class="voice-history-item" onclick="replayCommand(${i})">
+                    <span class="icon">${icon}</span>
+                    <span class="text">${escapeHtml(item.text)}</span>
+                    <span class="time">${item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function replayCommand(i) {
+            const item = commandHistory[i];
+            if (item) {
+                updateRecognizedText(item.text);
+                processCommand(item.text.toLowerCase().trim());
+            }
+        }
+
+        // ==============================
+        // EMAIL AGENT
+        // ==============================
+        const emailSendBtn = document.getElementById('email-send-btn');
+        const emailStatus = document.getElementById('email-status');
+        const emailRecentList = document.getElementById('email-recent-list');
+        let recentEmails = [];
+
+        function setEmailStatus(msg, type) {
+            emailStatus.textContent = msg;
+            emailStatus.className = 'email-status' + (type ? ' ' + type : '');
+        }
+
+        function addRecentEmail(subject, to) {
+            recentEmails.unshift({ subject, to, time: new Date() });
+            if (recentEmails.length > 5) recentEmails.pop();
+            renderRecentEmails();
+        }
+
+        function renderRecentEmails() {
+            if (recentEmails.length === 0) {
+                emailRecentList.innerHTML = '<div class="empty-state">No emails yet. Say "send email" to NIKA!</div>';
+                return;
+            }
+            emailRecentList.innerHTML = recentEmails.map(item => `
+                <div class="email-recent-item">
+                    <span class="icon">&#9993;</span>
+                    <span class="subject">${escapeHtml(item.subject)}</span>
+                    <span class="time">${item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `).join('');
+        }
+
+        // Manual compose → open Gmail directly
+        emailSendBtn.addEventListener('click', async () => {
+            const to = document.getElementById('email-to').value.trim();
+            const subject = document.getElementById('email-subject').value.trim();
+            const body = document.getElementById('email-body').value.trim();
+
+            if (!to && !subject && !body) {
+                setEmailStatus('Tell NIKA what to email, or fill the form.', 'error');
+                return;
+            }
+
+            // If all fields filled, generate via backend and open Gmail
+            const command = `send email to ${to} subject ${subject} body ${body}`;
+            emailSendBtn.classList.add('sending');
+            setEmailStatus('Generating via Gemini...', 'processing');
+
+            try {
+                const resp = await fetch('/agent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+                const data = await resp.json();
+
+                if (data.success && data.gmail_url) {
+                    window.open(data.gmail_url, '_blank');
+                    setEmailStatus('Opened in Gmail!', 'success');
+                    addRecentEmail(subject || 'Draft', to);
+                } else {
+                    // Fallback: build Gmail URL manually
+                    const gmailUrl = `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    window.open(gmailUrl, '_blank');
+                    setEmailStatus('Opened in Gmail (manual)!', 'success');
+                    addRecentEmail(subject || 'Draft', to);
+                }
+            } catch (err) {
+                // Fallback: build Gmail URL manually
+                const gmailUrl = `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(gmailUrl, '_blank');
+                setEmailStatus('Opened in Gmail (offline)!', 'success');
+                addRecentEmail(subject || 'Draft', to);
+            }
+
+            emailSendBtn.classList.remove('sending');
+        });
+
+        // ==============================
+        // BROOK (SPOTIFY AGENT)
+        // ==============================
+        const brookHistoryList = document.getElementById('brook-history-list');
+        let recentTracks = [];
+
+        function addBrookTrack(track, artist) {
+            recentTracks.unshift({ track, artist, time: new Date() });
+            if (recentTracks.length > 5) recentTracks.pop();
+            renderBrookTracks();
+        }
+
+        function renderBrookTracks() {
+            if (recentTracks.length === 0) {
+                brookHistoryList.innerHTML = '<div class="empty-state">No tracks yet. Talk to Brook!</div>';
+                return;
+            }
+            brookHistoryList.innerHTML = recentTracks.map(item => `
+                <div class="voice-history-item">
+                    <span class="icon">&#127926;</span>
+                    <span class="text">${escapeHtml(item.track)} — ${escapeHtml(item.artist)}</span>
+                    <span class="time">${item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `).join('');
+        }
+
+        // ==============================
+        // CURSOR TRACKING
+        // ==============================
+        let mouseX = -9999, mouseY = -9999;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        document.addEventListener('mouseleave', () => {
+            mouseX = -9999;
+            mouseY = -9999;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            mouseX = -9999;
+            mouseY = -9999;
+        });
+
+        // ==============================
+        // PANEL PROXIMITY GLOW
+        // ==============================
+        const glowPanels = [
+            document.querySelector('.pipeline-card'),
+            ...document.querySelectorAll('.agent-card')
+        ].filter(Boolean);
+
+        const GLOW_RADIUS = 280;
+
+        function updatePanelGlow() {
+            glowPanels.forEach(panel => {
+                const rect = panel.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const dx = mouseX - cx;
+                const dy = mouseY - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const maxDist = GLOW_RADIUS + Math.max(rect.width, rect.height) / 2;
+
+                if (dist < maxDist) {
+                    const t = 1 - dist / maxDist; // 0..1, closer = stronger
+                    const intensity = t * t; // quadratic falloff
+                    const glowAlpha = (intensity * 0.18).toFixed(3);
+                    const borderAlpha = (0.08 + intensity * 0.25).toFixed(3);
+                    const brighten = 1 + intensity * 0.12;
+                    const blurAmt = Math.round(24 + intensity * 8);
+
+                    panel.style.boxShadow =
+                        `0 0 ${20 + intensity * 30}px rgba(0,82,255,${glowAlpha}), ` +
+                        `0 8px 32px rgba(0,0,0,${(0.3 - intensity * 0.1).toFixed(2)}), ` +
+                        `inset 0 1px 0 rgba(255,255,255,${(0.04 + intensity * 0.08).toFixed(3)})`;
+                    panel.style.borderColor = `rgba(0,82,255,${borderAlpha})`;
+                    panel.style.backdropFilter = `blur(${blurAmt}px) saturate(${1.4 + intensity * 0.4}) brightness(${brighten})`;
+                    panel.style.webkitBackdropFilter = panel.style.backdropFilter;
+                } else {
+                    panel.style.boxShadow = '';
+                    panel.style.borderColor = '';
+                    panel.style.backdropFilter = '';
+                    panel.style.webkitBackdropFilter = '';
+                }
+            });
+            requestAnimationFrame(updatePanelGlow);
+        }
+
+        updatePanelGlow();
+
+        // ==============================
+        // EVENT LISTENERS
+        // ==============================
+        micBtn.addEventListener('click', () => {
+            if (isListening) recognition?.stop();
+            else startListening();
+        });
+
+        // Send typed command
+        function sendTypedCommand() {
+            const text = commandInput.value.trim();
+            if (!text) return;
+            processCommand(text.toLowerCase());
+            commandInput.value = '';
+        }
+
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendTypedCommand();
+            }
+            // Stop Space from triggering voice when typing in input
+            if (e.code === 'Space') e.stopPropagation();
+        });
+
+        commandSendBtn.addEventListener('click', sendTypedCommand);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && introComplete && document.activeElement !== commandInput) {
+                e.preventDefault();
+                if (isListening) recognition?.stop();
+                else startListening();
+            }
+        });
+
+        document.querySelectorAll('.voice-cmd-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const command = btn.getAttribute('data-command');
+                updateRecognizedText(command);
+                processCommand(command);
+            });
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const cmdParam = urlParams.get('command');
+        if (cmdParam && introComplete) {
+            setTimeout(() => { updateRecognizedText(cmdParam); processCommand(cmdParam.toLowerCase().trim()); }, 500);
+        }
+
+    </script>
+</body>
+</html>
