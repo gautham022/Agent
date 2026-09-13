@@ -78,13 +78,16 @@ def search_spotify(
 
         if client_id and client_secret:
 
-            return _search_with_api(
+            result = _search_with_api(
                 query,
                 client_id,
                 client_secret
             )
 
-        return _search_with_embed(
+            if result:
+                return result
+
+        return _search_with_itunes(
             query
         )
 
@@ -172,28 +175,58 @@ def _search_with_api(
         return None
 
 
-def _search_with_embed(
+def _search_with_itunes(
     query: str
 ) -> dict | None:
 
+    # No Spotify API keys set. Spotify's /embed/search URLs
+    # return 404, so use the iTunes Search API (no key needed)
+    # to resolve a real track + 30s preview, and link to the
+    # Spotify search page for full playback.
+
     try:
 
-        search_url = (
-            f"https://open.spotify.com/search"
-            f"/{requests.utils.quote(query)}"
+        resp = requests.get(
+            "https://itunes.apple.com/search",
+            params={
+                "term": query,
+                "entity": "song",
+                "limit": 1
+            },
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            },
+            timeout=10
         )
 
+        if resp.status_code != 200:
+            return None
+
+        results = resp.json().get(
+            "results", []
+        )
+
+        if not results:
+            return None
+
+        item = results[0]
+
         return {
-            "track": query.title(),
-            "artist": "Unknown Artist",
-            "embed_url": (
-                f"https://open.spotify.com/embed"
-                f"/search/{requests.utils.quote(query)}"
-                f"?utm_source=generator"
-                f"&theme=0"
+            "track": item.get(
+                "trackName", query
             ),
-            "preview_url": None,
-            "spotify_url": search_url
+            "artist": item.get(
+                "artistName",
+                "Unknown Artist"
+            ),
+            "embed_url": None,
+            "preview_url": item.get(
+                "previewUrl"
+            ),
+            "spotify_url": (
+                f"https://open.spotify.com/search"
+                f"/{requests.utils.quote(query)}"
+            )
         }
 
     except Exception:
