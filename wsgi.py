@@ -1,11 +1,9 @@
-from app import create_app
-
-app = create_app()
-
-
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
+services:
+  - type: web
+    name: Agent
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
