@@ -1,5 +1,4 @@
 Flask
-Pillow
-pytesseract
-flask_cors
-gunicorn
+Flask-Cors
+requests
+gunicorn==21.0.0
