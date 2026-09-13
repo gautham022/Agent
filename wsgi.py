@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: Agent
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.0"
