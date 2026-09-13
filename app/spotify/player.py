@@ -43,7 +43,9 @@ def extract_spotify_query(
         "on spotify", "for me", "please",
         "can you", "could you", "i want to hear",
         "i want to listen to",
-        "put on", "start playing"
+        "put on", "start playing",
+        " on ", " some ", " the ",
+        "brook", "hey brook"
     ]
 
     query = lower
