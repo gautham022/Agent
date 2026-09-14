@@ -14,6 +14,10 @@ from app.youtube import youtube_bp
 
 from app.spotify import spotify_bp
 
+from app.instagram import instagram_bp
+
+from app.linkedin import linkedin_bp
+
 
 def create_app():
 
@@ -33,6 +37,20 @@ def create_app():
     app.register_blueprint(
         spotify_bp,
         url_prefix="/spotify"
+    )
+
+
+    # Instagram
+    app.register_blueprint(
+        instagram_bp,
+        url_prefix="/instagram"
+    )
+
+
+    # LinkedIn
+    app.register_blueprint(
+        linkedin_bp,
+        url_prefix="/linkedin"
     )
 
 
