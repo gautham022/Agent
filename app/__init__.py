@@ -18,6 +18,12 @@ from app.instagram import instagram_bp
 
 from app.linkedin import linkedin_bp
 
+from app.todo_remainder import todo_remainder_bp
+
+from app.news import news_bp
+
+from app.map import map_bp
+
 
 def create_app():
 
@@ -51,6 +57,27 @@ def create_app():
     app.register_blueprint(
         linkedin_bp,
         url_prefix="/linkedin"
+    )
+
+
+    # Todo Remainder (Reminders)
+    app.register_blueprint(
+        todo_remainder_bp,
+        url_prefix="/todo-remainder"
+    )
+
+
+    # News
+    app.register_blueprint(
+        news_bp,
+        url_prefix="/news"
+    )
+
+
+    # Map (Maps/Travel)
+    app.register_blueprint(
+        map_bp,
+        url_prefix="/map"
     )
 
 
