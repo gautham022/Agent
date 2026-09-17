@@ -1,19 +1,18 @@
 from flask import Blueprint, request, jsonify
 
-from app.spotify.player import (
-    search_spotify,
-    is_spotify_command,
-    extract_spotify_query
+from app.brook.player import (
+    search_youtube_music,
+    extract_brook_query
 )
 
 
-spotify_bp = Blueprint(
-    "spotify",
+brook_bp = Blueprint(
+    "brook",
     __name__
 )
 
 
-@spotify_bp.route(
+@brook_bp.route(
     "/play",
     methods=["POST"]
 )
@@ -29,29 +28,16 @@ def play():
     ).strip()
 
     if not command:
-
         return jsonify({
             "success": False,
             "message": "Song name is required"
         }), 400
 
-    if not is_spotify_command(command):
+    query = extract_brook_query(command)
 
-        return jsonify({
-            "success": False,
-            "message": "Please give a music command."
-        }), 400
-
-    query = extract_spotify_query(
-        command
-    )
-
-    result = search_spotify(
-        query
-    )
+    result = search_youtube_music(query)
 
     if not result:
-
         return jsonify({
             "success": False,
             "message": "Could not find the song"
@@ -59,11 +45,10 @@ def play():
 
     return jsonify({
         "success": True,
-        "type": "spotify",
+        "type": "brook",
         "query": query,
         "track": result["track"],
         "artist": result["artist"],
-        "embed_url": result["embed_url"],
-        "preview_url": result.get("preview_url"),
-        "spotify_url": result.get("spotify_url")
+        "embed_url": result.get("embed_url"),
+        "ytmusic_url": result.get("ytmusic_url")
     })

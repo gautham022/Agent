@@ -81,8 +81,14 @@ pip install -r requirements.txt
 ### 2. Set environment variables
 
 ```bash
-# Required for Speed Draft (Gmail AI Agent)
+# Preferred — Groq API for AI text generation (email, captions, posts)
+export GROQ_API_KEY="your-groq-api-key"
+
+# Fallback — Gemini API (used if GROQ_API_KEY is not set)
 export GEMINI_API_KEY="your-gemini-api-key"
+
+# Optional — custom Groq model (default: llama-3.3-70b-versatile)
+export GROQ_MODEL="llama-3.3-70b-versatile"
 
 # Optional — enables direct Spotify API search for Brook
 export SPOTIFY_CLIENT_ID="your-spotify-client-id"

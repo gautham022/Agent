@@ -255,92 +255,16 @@ def _detect_intent(command):
 
 
 def handle_travel_command(command):
-    intent = _detect_intent(command)
+    # The user wants all map/routing/location commands to open Google Maps directly.
+    # Google Maps natively parses natural language searches perfectly like:
+    # "search charging point for my tvs orbitor bike from vandalur to chennai beach"
+    encoded_query = urllib.parse.quote(command)
 
-    if intent == "ev_charging":
-        # Find EV charging near a location
-        location = command
-        for word in ["find", "search", "near", "around", "close to",
-                      "charge", "charging", "ev", "station", "bike",
-                      "my", "me", "please", "give me", "show me"]:
-            location = location.replace(word, "")
-        location = re.sub(r'\s+', ' ', location).strip()
-        if not location:
-            location = "current location"
+    # We use Google Maps Universal cross-platform URL format
+    # This will open the native Google Maps app on iOS/Android, and the web maps on desktop.
+    map_url = f"https://www.google.com/maps/search/?api=1&query={encoded_query}"
 
-        coords = _geocode(location)
-        if not coords:
-            return {
-                "intent": "ev_charging",
-                "message": f"Could not find location: {location}",
-                "stations": []
-            }
-
-        stations = _find_ev_charging(coords["lat"], coords["lon"])
-        return {
-            "intent": "ev_charging",
-            "location": coords.get("display_name", location),
-            "stations": stations
-        }
-
-    elif intent == "booking":
-        origin, destination = _parse_places(command)
-        if not origin or not destination:
-            # Try to extract just a destination
-            dest = command
-            for word in ["book", "ticket", "bus", "train", "flight",
-                          "to", "from", "please", "give me"]:
-                dest = dest.replace(word, "")
-            dest = re.sub(r'\s+', ' ', dest).strip()
-            if dest:
-                links = _generate_booking_links("my city", dest)
-            else:
-                links = []
-        else:
-            links = _generate_booking_links(origin, destination)
-
-        return {
-            "intent": "booking",
-            "origin": origin or "your city",
-            "destination": destination or "destination",
-            "links": links
-        }
-
-    else:
-        # Route/directions intent
-        origin, destination = _parse_places(command)
-        if not origin or not destination:
-            return {
-                "intent": "route",
-                "message": "Please specify origin and destination (e.g., 'route from A to B')",
-                "route": None
-            }
-
-        origin_coords = _geocode(origin)
-        dest_coords = _geocode(destination)
-
-        if not origin_coords:
-            return {
-                "intent": "route",
-                "message": f"Could not find: {origin}",
-                "route": None
-            }
-        if not dest_coords:
-            return {
-                "intent": "route",
-                "message": f"Could not find: {destination}",
-                "route": None
-            }
-
-        route = _get_route(origin_coords, dest_coords)
-        if not route:
-            return {
-                "intent": "route",
-                "message": "Could not calculate route",
-                "route": None
-            }
-
-        return {
-            "intent": "route",
-            "route": route
-        }
+    return {
+        "intent": "route",
+        "map_url": map_url
+    }

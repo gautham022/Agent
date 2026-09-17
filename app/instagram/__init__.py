@@ -37,13 +37,6 @@ def caption():
                 "message": "Command is required"
             }), 400
 
-        if not is_instagram_command(command):
-
-            return jsonify({
-                "success": False,
-                "message": "Please give an Instagram command."
-            }), 400
-
         result = generate_caption_with_gemini(
             command
         )

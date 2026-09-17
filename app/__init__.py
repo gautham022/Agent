@@ -12,7 +12,7 @@ from app.gmail import (
 
 from app.youtube import youtube_bp
 
-from app.spotify import spotify_bp
+from app.brook import brook_bp
 
 from app.instagram import instagram_bp
 
@@ -39,10 +39,10 @@ def create_app():
     )
 
 
-    # Spotify
+    # Brook (YouTube Music)
     app.register_blueprint(
-        spotify_bp,
-        url_prefix="/spotify"
+        brook_bp,
+        url_prefix="/brook"
     )
 
 

@@ -37,13 +37,6 @@ def post():
                 "message": "Command is required"
             }), 400
 
-        if not is_linkedin_command(command):
-
-            return jsonify({
-                "success": False,
-                "message": "Please give a LinkedIn command."
-            }), 400
-
         result = generate_post_with_gemini(
             command
         )
